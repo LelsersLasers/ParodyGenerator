@@ -5,6 +5,7 @@ import subprocess
 import whisper
 import random
 import alive_progress
+import pydub
 
 PUNCTUATION = list(string.punctuation) + [" ", "“", "”", "¿", "¡", "。", "，", "！", "？", "：", "、", "；", "．"]
 
@@ -18,8 +19,8 @@ SONG_FILE = "song.mp3"
 SPLEETER_OUTPUT = "spleeter_output"
 OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
-TEMP_FOLDER = "temp"
-CONCAT_LIST_FILE = "concat_list.txt"
+# TEMP_FOLDER = "temp"
+# CONCAT_LIST_FILE = "concat_list.txt"
 
 #------------------------------------------------------------------------------# 
 # Setup SQLite3 database
@@ -270,33 +271,13 @@ print("")
 #------------------------------------------------------------------------------#
 # Generate output voice file
 
-# Delete temp folder if it exists
-if os.path.exists(TEMP_FOLDER):
-	print("Deleting existing temp folder.")
-	subprocess.run(["rm", "-r", TEMP_FOLDER])
+voice_file = pydub.AudioSegment.from_file(vocals_file)
+voice_output = pydub.AudioSegment.empty()
 
-# Create temp folder for processed audio files
-print("Creating temp folder")
-os.mkdir(TEMP_FOLDER)
-
-list_file = open(os.path.join(TEMP_FOLDER, CONCAT_LIST_FILE), "w")
-
-clip_i = 0
-
-# First clip (take from the vocals file)
+# First clip (from the vocals file)
 first_replace = replaced_words[0]
-# first_start = first_replace.song_word.start
-# first_sf = first_replace.speed_factor
-
-first_clip_fn = f"{clip_i}.wav"
-first_clip_fp = os.path.join(TEMP_FOLDER, first_clip_fn)
-
-# ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {first_start} -filter:a "atempo={speed_factor}" -c:a pcm_s16le {first_clip_fp}
-command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -t {first_replace.song_word.start} {first_clip_fp}".split()
-subprocess.run(command)
-
-list_file.write(f"file '{first_clip_fn}'\n")
-clip_i += 1
+first_start = int(float(first_replace.song_word.start) * 1000)
+voice_output += voice_file[:first_start]
 
 # For every clip, take the word from the input then fill the gap with the vocals
 with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
@@ -305,102 +286,31 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		next_replace = replaced_words[i + 1]
 
 		# Take the replace clip from the prep-ed file
-		replace_clip_fn = f"{clip_i}.wav"
-		replace_clip_fp = os.path.join(TEMP_FOLDER, replace_clip_fn)
-		clip_i += 1
-
-		speed_factor = replace.speed_factor
-		filters = []
-		if speed_factor > 2.0:
-			while speed_factor > 2.0:
-				filters.append("atempo=2.0")
-				speed_factor /= 2.0
-		elif speed_factor < 0.5:
-			while speed_factor < 0.5:
-				filters.append("atempo=0.5")
-				speed_factor *= 2.0
-		if speed_factor > 0:
-			filters.append(f"atempo={speed_factor}")
-		filter_chain = ",".join(filters)
-
-		t = float(replace.input_word.end) - float(replace.input_word.start)
-
-		command = [
-			"ffmpeg",
-			"-hide_banner",
-			"-loglevel", "error",
-			"-y",
-			"-i", replace.input_word.file,
-			"-ss", str(replace.input_word.start),
-			# "-to", str(replace.input_word.end),
-			"-t", str(t),
-			"-filter:a", filter_chain,
-			replace_clip_fp
-		]
-		print(" ".join(command))
-		subprocess.run(command)
-
-		if os.path.exists(replace_clip_fp):
-			list_file.write(f"file '{replace_clip_fn}'\n")
+		f = pydub.AudioSegment.from_file(replace.input_word.file)
+		f_seg = f[int(float(replace.input_word.start) * 1000):int(float(replace.input_word.end) * 1000)]
+		f_seg = f_seg.speedup(playback_speed=replace.speed_factor)
+		voice_output += f_seg
 
 		# Take the next clip from the vocals file
-		next_clip_fn = f"{clip_i}.wav"
-		next_clip_fp = os.path.join(TEMP_FOLDER, next_clip_fn)
-		clip_i += 1
-
-		command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {replace.song_word.end} -to {next_replace.song_word.start} {next_clip_fp}".split()
-		subprocess.run(command)
-
-		list_file.write(f"file '{next_clip_fn}'\n")
+		f_seg = voice_file[int(float(replace.song_word.end) * 1000):int(float(next_replace.song_word.start) * 1000)]
+		voice_output += f_seg
 
 		bar()
 
-# Last clip
+# Last clip from the input file
 last_replace = replaced_words[-1]
-
-last_clip_fn = f"{clip_i}.wav"
-last_clip_fp = os.path.join(TEMP_FOLDER, last_clip_fn)
-clip_i += 1
-
-speed_factor = replace.speed_factor
-filters = []
-if speed_factor > 2.0:
-	while speed_factor > 2.0:
-		filters.append("atempo=2.0")
-		speed_factor /= 2.0
-elif speed_factor < 0.5:
-	while speed_factor < 0.5:
-		filters.append("atempo=0.5")
-		speed_factor *= 2.0
-if speed_factor > 0:
-	filters.append(f"atempo={speed_factor}")
-filter_chain = ",".join(filters)
-
-command = f"ffmpeg -hide_banner -loglevel error -y -ss {last_replace.input_word.start} -to {last_replace.input_word.end} -i {last_replace.input_word.file} -filter:a \"{filter_chain}\" {last_clip_fp}".split()
-subprocess.run(command)
-
-list_file.write(f"file '{last_clip_fn}'\n")
+f = pydub.AudioSegment.from_file(last_replace.input_word.file)
+f_seg = f[int(float(last_replace.input_word.start) * 1000):int(float(last_replace.input_word.end) * 1000)]
+f_seg = f_seg.speedup(playback_speed=last_replace.speed_factor)
+voice_output += f_seg
 
 # Last clip from the vocals file
-last_vocals_clip_fn = f"{clip_i}.wav"
-last_vocals_clip_fp = os.path.join(TEMP_FOLDER, last_vocals_clip_fn)
+f_seg = voice_file[int(float(last_replace.song_word.end) * 1000):]
+voice_output += f_seg
 
-command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {last_replace.song_word.end} {last_vocals_clip_fp}".split()
-subprocess.run(command)
-
-list_file.write(f"file '{last_vocals_clip_fn}'\n")
-
-list_file.close()
-
-# Concatenate all clips
-print("Concatenating all clips")
-output_fp = os.path.join(os.getcwd(), OUTPUT_VOICE_FILE)
-command = f"ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i {os.path.join(TEMP_FOLDER, CONCAT_LIST_FILE)} {output_fp}".split()
-subprocess.run(command)
-
-# Clean up temp folder
-print("Cleaning up temp folder")
-subprocess.run(["rm", "-rf", TEMP_FOLDER])
+# Save the output voice file
+print(f"Saving output voice file to {OUTPUT_VOICE_FILE}")
+voice_output.export(OUTPUT_VOICE_FILE, format="mp3")
 
 print("")
 #------------------------------------------------------------------------------#
