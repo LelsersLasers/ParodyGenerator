@@ -369,7 +369,7 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		f = pydub.AudioSegment.from_file(replace.input_word.file)
 		a = int(float(replace.input_word.start) * 1000)
 		b = int(float(replace.input_word.end) * 1000)	
-		print(f"{a}\t{b}\t{b - a}\t{replace.speed_factor:.2f}\t{replace.input_word.word}")
+		print(f"{a}\t{b}\t{b - a}\t{replace.speed_factor:>5.2f}\t{replace.input_word.word}")
 		f_seg = f[a:b]
 		f_seg = modify_speed(f_seg, replace.speed_factor)
 		
