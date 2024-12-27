@@ -148,13 +148,13 @@ print(f"Splitting song {song_file}")
 spleeter_output_path = os.path.join(os.getcwd(), SPLEETER_OUTPUT)
 song_path = os.path.join(os.getcwd(), SONG_PATH)
 command = [
-    "docker", "run", 
-    "-v", f"{spleeter_output_path}:/output", 
-    "-v", f"{song_path}:/input", 
-    "deezer/spleeter:3.6-5stems", 
-    "separate", 
-    "-o", "/output", 
-    f"/input/{SONG_FILE}"
+	"docker", "run", 
+	"-v", f"{spleeter_output_path}:/output", 
+	"-v", f"{song_path}:/input", 
+	"deezer/spleeter:3.6-5stems", 
+	"separate", 
+	"-o", "/output", 
+	f"/input/{SONG_FILE}"
 ]
 subprocess.run(command)
 # command = F"docker run -v $(pwd)/{SPLEETER_OUTPUT}:/output -v $(pwd)/{SONG_PATH}:/input deezer/spleeter:3.6-5stems separate -o /output /input/{SONG_FILE}".split()
@@ -410,14 +410,14 @@ print("")
 # Combine voice and accompaniment
 
 command = [
-    "ffmpeg", 
+	"ffmpeg", 
 	"-hide_banner",
 	"-loglevel", "error",
-    "-i", accompaniment_file,
-    "-i", OUTPUT_VOICE_FILE,
-    "-filter_complex",
-    "[0][1]amix=inputs=2:duration=longest",
-    OUTPUT_FILE
+	"-i", accompaniment_file,
+	"-i", OUTPUT_VOICE_FILE,
+	"-filter_complex",
+	"[0][1]amix=inputs=2:duration=longest",
+	OUTPUT_FILE
 ]
 subprocess.run(command)
 
