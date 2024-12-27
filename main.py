@@ -6,9 +6,11 @@ import whisper
 import random
 import alive_progress
 import pydub
+#------------------------------------------------------------------------------# 
 
+
+#------------------------------------------------------------------------------# 
 PUNCTUATION = list(string.punctuation) + [" ", "“", "”", "¿", "¡", "。", "，", "！", "？", "：", "、", "；", "．"]
-
 
 DB_FILE = "database.db"
 INPUT_FOLDER = "input"
@@ -21,6 +23,17 @@ OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
 MIN_TIME = 200
 LOUD_ADJUST = 10.0
+#------------------------------------------------------------------------------# 
+
+
+#------------------------------------------------------------------------------# 
+# Delete spleeter output folder if it exists
+
+if os.path.exists(SPLEETER_OUTPUT):
+	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
+	subprocess.run(["sudo", "rm", "-rf", SPLEETER_OUTPUT])
+#------------------------------------------------------------------------------# 
+
 
 #------------------------------------------------------------------------------# 
 # Setup SQLite3 database
@@ -144,11 +157,6 @@ print("")
 
 #------------------------------------------------------------------------------#
 # Split song into voice and accompaniment
-
-# Delete spleeter output folder if it exists
-if os.path.exists(SPLEETER_OUTPUT):
-	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
-	subprocess.run(["sudo", "rm", "-rf", SPLEETER_OUTPUT])
 
 song_file = os.path.join(os.getcwd(), SONG_FILE)
 
