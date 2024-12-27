@@ -332,10 +332,11 @@ def modify_speed(f_seg, speed_factor):
 
 	for sf in sfs:
 		try:
-			f_seg = f_seg.speedup(playback_speed=sf, chunk_size=40, crossfade=0)
-		except ZeroDivisionError:
-			print(f"ZeroDivisionError for {replace.input_word.word}")
-			print(f"Speed factor: {sf}")
+			f_seg = f_seg.speedup(playback_speed=sf, crossfade=0)
+		except Exception as e:
+			# print(f"ZeroDivisionError for {replace.input_word.word}")
+			# print(f"Speed factor: {sf}")
+			print(f"Error: {e}")
 
 	return f_seg
 
@@ -357,16 +358,11 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		f = pydub.AudioSegment.from_file(replace.input_word.file)
 		a = int(float(replace.input_word.start) * 1000)
 		b = int(float(replace.input_word.end) * 1000)
-		print(f"\t{a} \t{b} \t{b - a}")
+		print(f"\t{a} \t{b} \t{b - a} \t{replace.speed_factor}")
 		f_seg = f[a:b]
 		f_seg = modify_speed(f_seg, replace.speed_factor)
-		t = (b - a) * replace.speed_factor
-
-		if t > 10:
-			voice_output = voice_output.append(f_seg, crossfade=10)
-		else:
-			voice_output += f_seg
-		# voice_output = voice_output.append(f_seg, crossfade=10)
+		# t = (b - a) * replace.speed_factor
+		voice_output += f_seg
 
 		# Take the next clip from the vocals file
 		# f_seg = voice_file[int(float(replace.song_word.end) * 1000):int(float(next_replace.song_word.start) * 1000)]
