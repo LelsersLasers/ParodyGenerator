@@ -3,7 +3,6 @@ import sqlite3
 import os
 import subprocess
 import whisper
-import random
 import alive_progress
 import pydub
 #------------------------------------------------------------------------------# 
