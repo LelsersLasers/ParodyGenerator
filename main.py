@@ -58,7 +58,7 @@ print("")
 # Delete prep folder if it exists
 if os.path.exists(PREP_FOLDER):
 	print("Deleting existing prep folder")
-	subprocess.run(["rm", "-vr", PREP_FOLDER])
+	subprocess.run(["rm", "-r", PREP_FOLDER])
 
 # Create prep folder
 print("Creating prep folder")
@@ -140,7 +140,7 @@ print("")
 # Delete spleeter output folder if it exists
 if os.path.exists(SPLEETER_OUTPUT):
 	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
-	subprocess.run(["sudo", "rm", "-rvf", SPLEETER_OUTPUT])
+	subprocess.run(["sudo", "rm", "-rf", SPLEETER_OUTPUT])
 
 song_file = os.path.join(os.getcwd(), SONG_FILE)
 
@@ -166,6 +166,13 @@ accompaniment_file = os.path.join(os.getcwd(), SPLEETER_OUTPUT, song_basename, "
 
 print(f"Vocals file: {vocals_file}")
 print(f"Accompaniment file: {accompaniment_file}")
+
+print("")
+#------------------------------------------------------------------------------#
+
+
+#------------------------------------------------------------------------------#
+# Transcribe vocals file
 
 print("Transcribing vocals file")
 transcript = model.transcribe(vocals_file, language="en", verbose=False, word_timestamps=True)
@@ -241,12 +248,20 @@ with alive_progress.alive_bar(len(song_words)) as bar:
 		song_duration = end - start
 		speed_factor = input_duration / song_duration
 
+		if speed_factor == float("inf"):
+			print(f"Speed factor is infinity for {word}")
+			continue
+		elif speed_factor == 0:
+			print(f"Speed factor is 0 for {word}")
+			continue
+
 		iw = InputWord(result["word"], result["file"], result["start"], result["end"])
 
 		print(f"Matched {word} with {iw.file} at {start} to {end} with speed factor {speed_factor}")
 
 		replaced_words.append(ReplacedWord(sw, iw, speed_factor))
-	bar()
+		
+		bar()
 
 print("")
 #------------------------------------------------------------------------------# 
@@ -258,7 +273,7 @@ print("")
 # Delete temp folder if it exists
 if os.path.exists(TEMP_FOLDER):
 	print("Deleting existing temp folder.")
-	subprocess.run(["rm", "-rv", TEMP_FOLDER])
+	subprocess.run(["rm", "-r", TEMP_FOLDER])
 
 # Create temp folder for processed audio files
 print("Creating temp folder")
@@ -280,7 +295,7 @@ first_clip_fp = os.path.join(TEMP_FOLDER, first_clip_fn)
 command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -t {first_replace.song_word.start} {first_clip_fp}".split()
 subprocess.run(command)
 
-list_file.write(f"file '{first_clip_fp}'\n")
+list_file.write(f"file '{first_clip_fn}'\n")
 clip_i += 1
 
 # For every clip, take the word from the input then fill the gap with the vocals
@@ -289,20 +304,44 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		replace = replaced_words[i]
 		next_replace = replaced_words[i + 1]
 
-		# replace_start = replace.song_word.start
-		# replace_end = replace.song_word.end
-
-		# next_start = next_replace.song_word.start
-
 		# Take the replace clip from the prep-ed file
 		replace_clip_fn = f"{clip_i}.wav"
 		replace_clip_fp = os.path.join(TEMP_FOLDER, replace_clip_fn)
 		clip_i += 1
 
-		command = f"ffmpeg -hide_banner -loglevel error -y -i {replace.input_word.file} -ss {replace.input_word.start} -to {replace.input_word.end} -filter:a \"atempo={replace.speed_factor}\" {replace_clip_fp}".split()
+		speed_factor = replace.speed_factor
+		filters = []
+		if speed_factor > 2.0:
+			while speed_factor > 2.0:
+				filters.append("atempo=2.0")
+				speed_factor /= 2.0
+		elif speed_factor < 0.5:
+			while speed_factor < 0.5:
+				filters.append("atempo=0.5")
+				speed_factor *= 2.0
+		if speed_factor > 0:
+			filters.append(f"atempo={speed_factor}")
+		filter_chain = ",".join(filters)
+
+		t = float(replace.input_word.end) - float(replace.input_word.start)
+
+		command = [
+			"ffmpeg",
+			"-hide_banner",
+			"-loglevel", "error",
+			"-y",
+			"-i", replace.input_word.file,
+			"-ss", str(replace.input_word.start),
+			# "-to", str(replace.input_word.end),
+			"-t", str(t),
+			"-filter:a", filter_chain,
+			replace_clip_fp
+		]
+		print(" ".join(command))
 		subprocess.run(command)
 
-		list_file.write(f"file '{replace_clip_fp}'\n")
+		if os.path.exists(replace_clip_fp):
+			list_file.write(f"file '{replace_clip_fn}'\n")
 
 		# Take the next clip from the vocals file
 		next_clip_fn = f"{clip_i}.wav"
@@ -312,23 +351,35 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {replace.song_word.end} -to {next_replace.song_word.start} {next_clip_fp}".split()
 		subprocess.run(command)
 
-		list_file.write(f"file '{next_clip_fp}'\n")
+		list_file.write(f"file '{next_clip_fn}'\n")
 
 		bar()
 
 # Last clip
 last_replace = replaced_words[-1]
-# last_start = last_replace.song_word.start
-# last_end = last_replace.song_word.end
 
 last_clip_fn = f"{clip_i}.wav"
 last_clip_fp = os.path.join(TEMP_FOLDER, last_clip_fn)
 clip_i += 1
 
-command = f"ffmpeg -hide_banner -loglevel error -y -i {last_replace.input_word.file} -ss {last_replace.input_word.start} -to {last_replace.input_word.end} -filter:a \"atempo={last_replace.speed_factor}\" {last_clip_fp}".split()
+speed_factor = replace.speed_factor
+filters = []
+if speed_factor > 2.0:
+	while speed_factor > 2.0:
+		filters.append("atempo=2.0")
+		speed_factor /= 2.0
+elif speed_factor < 0.5:
+	while speed_factor < 0.5:
+		filters.append("atempo=0.5")
+		speed_factor *= 2.0
+if speed_factor > 0:
+	filters.append(f"atempo={speed_factor}")
+filter_chain = ",".join(filters)
+
+command = f"ffmpeg -hide_banner -loglevel error -y -ss {last_replace.input_word.start} -to {last_replace.input_word.end} -i {last_replace.input_word.file} -filter:a \"{filter_chain}\" {last_clip_fp}".split()
 subprocess.run(command)
 
-list_file.write(f"file '{last_clip_fp}'\n")
+list_file.write(f"file '{last_clip_fn}'\n")
 
 # Last clip from the vocals file
 last_vocals_clip_fn = f"{clip_i}.wav"
@@ -337,7 +388,7 @@ last_vocals_clip_fp = os.path.join(TEMP_FOLDER, last_vocals_clip_fn)
 command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {last_replace.song_word.end} {last_vocals_clip_fp}".split()
 subprocess.run(command)
 
-list_file.write(f"file '{last_vocals_clip_fp}'\n")
+list_file.write(f"file '{last_vocals_clip_fn}'\n")
 
 list_file.close()
 
@@ -360,6 +411,8 @@ print("")
 
 command = [
     "ffmpeg", 
+	"-hide_banner",
+	"-loglevel", "error",
     "-i", accompaniment_file,
     "-i", OUTPUT_VOICE_FILE,
     "-filter_complex",
