@@ -381,11 +381,19 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 			voice_output += f_seg
 
 		# Take the next clip from the vocals file
-		# f_seg = voice_file[int(float(replace.song_word.end) * 1000):int(float(next_replace.song_word.start) * 1000)]
-		# voice_output += f_seg
-		length = int(float(next_replace.song_word.start) * 1000) - int(float(replace.song_word.end) * 1000)
-		silent = pydub.AudioSegment.silent(duration=length)
-		voice_output += silent
+		a = int(float(replace.song_word.end) * 1000)
+		b = int(float(next_replace.song_word.start) * 1000)
+		t = b - a
+		if t > 5:
+			f_seg = voice_file[a:b]
+			voice_output += f_seg
+		else:
+			silent = pydub.AudioSegment.silent(duration=t)
+			voice_output += silent
+
+		# length = int(float(next_replace.song_word.start) * 1000) - int(float(replace.song_word.end) * 1000)
+		# silent = pydub.AudioSegment.silent(duration=length)
+		# voice_output += silent
 
 		bar()
 
