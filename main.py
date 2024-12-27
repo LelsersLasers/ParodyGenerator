@@ -16,6 +16,7 @@ WHISPER_MODEL = "tiny.en"
 SONG_PATH = "song"
 SONG_FILE = "song.mp3"
 SPLEETER_OUTPUT = "spleeter_output"
+OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
 TEMP_FOLDER = "temp"
 CONCAT_LIST_FILE = "concat_list.txt"
@@ -252,7 +253,7 @@ print("")
 
 
 #------------------------------------------------------------------------------#
-# Generate output file
+# Generate output voice file
 
 # Delete temp folder if it exists
 if os.path.exists(TEMP_FOLDER):
@@ -342,13 +343,30 @@ list_file.close()
 
 # Concatenate all clips
 print("Concatenating all clips")
-output_fp = os.path.join(os.getcwd(), OUTPUT_FILE)
+output_fp = os.path.join(os.getcwd(), OUTPUT_VOICE_FILE)
 command = f"ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i {os.path.join(TEMP_FOLDER, CONCAT_LIST_FILE)} -c copy {output_fp}".split()
 subprocess.run(command)
 
 # Clean up temp folder
 print("Cleaning up temp folder")
 subprocess.run(["rm", "-rf", TEMP_FOLDER])
+
+print("")
+#------------------------------------------------------------------------------#
+
+
+#------------------------------------------------------------------------------#
+# Combine voice and accompaniment
+
+command = [
+    "ffmpeg", 
+    "-i", accompaniment_file,
+    "-i", OUTPUT_VOICE_FILE,
+    "-filter_complex",
+    "[0][1]amix=inputs=2:duration=longest",
+    OUTPUT_FILE
+]
+subprocess.run(command)
 
 print("")
 #------------------------------------------------------------------------------#
