@@ -20,7 +20,7 @@ SPLEETER_OUTPUT = "spleeter_output"
 OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
 MIN_TIME = 200
-LOUD_ADJUST = 5.0
+LOUD_ADJUST = 10.0
 
 #------------------------------------------------------------------------------# 
 # Setup SQLite3 database
@@ -266,26 +266,33 @@ with alive_progress.alive_bar(len(song_words)) as bar:
 
 		sw = SongWord(word, start, end)
 
-		# Find word in database
-		results = [dict(row) for row in db.execute("SELECT * FROM words WHERE word = ?", (word,)).fetchall()]
-
-		# If no results, skip
-		if len(results) == 0:
-			# rw = ReplacedWord(sw, None, -1.0)
-			print(f"No match for {word}")
-			bar()
-			continue
-
 		def calc_speed_factor(result):
 			input_duration = float(result["end"]) - float(result["start"])
 			song_duration = end - start
 			speed_factor = input_duration / song_duration
 			return speed_factor
-		
+
 		def dist_to_one(speed_factor):
 			return abs(1 - speed_factor)
 		
+		def is_valid_result(result):
+			speed_factor = calc_speed_factor(result)
+			t = int(float(result["end"]) * 1000) - int(float(result["start"]) * 1000)
+			return t / speed_factor >= MIN_TIME and speed_factor != 0 and speed_factor != float("inf")
+		
+		# Find word in database
+		results = [dict(row) for row in db.execute("SELECT * FROM words WHERE word = ?", (word,)).fetchall()]
+		results = [result for result in results if is_valid_result(result)]
+
+		# If no results, skip
+		if len(results) == 0:
+			# rw = ReplacedWord(sw, None, -1.0)
+			print(f"No (valid) results for {word}")
+			bar()
+			continue
+
 		results.sort(key=lambda result: dist_to_one(calc_speed_factor(result)))
+
 		for result in results:
 			speed_factor = calc_speed_factor(result)
 
