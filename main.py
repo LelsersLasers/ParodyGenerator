@@ -2,9 +2,9 @@ import string
 import sqlite3
 import os
 import subprocess
-import whisper
-import alive_progress
-import pydub
+import whisper # type: ignore
+import alive_progress # type: ignore
+import pydub # type: ignore
 #------------------------------------------------------------------------------# 
 
 
