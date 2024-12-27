@@ -26,7 +26,7 @@ LOUD_ADJUST = 10.0
 
 
 #------------------------------------------------------------------------------# 
-# Delete spleeter output folder if it exists
+# Delete spleeter output folder if it exists (do first to prompt for sudo password)
 
 if os.path.exists(SPLEETER_OUTPUT):
 	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
