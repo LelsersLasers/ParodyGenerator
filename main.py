@@ -333,6 +333,7 @@ def modify_speed(f_seg, speed_factor):
 			# print(f"ZeroDivisionError for {replace.input_word.word}")
 			# print(f"Speed factor: {sf}")
 			print(f"Error: {e}")
+			return None
 
 	return f_seg
 
@@ -353,12 +354,17 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		# Take the replace clip from the prep-ed file
 		f = pydub.AudioSegment.from_file(replace.input_word.file)
 		a = int(float(replace.input_word.start) * 1000)
-		b = int(float(replace.input_word.end) * 1000)
-		print(f"\t{a} \t{b} \t{b - a} \t{replace.speed_factor}")
+		b = int(float(replace.input_word.end) * 1000)	
+		print(f"{a}\t{b}\t{b - a}\t{replace.speed_factor}")
 		f_seg = f[a:b]
 		f_seg = modify_speed(f_seg, replace.speed_factor)
-		# t = (b - a) * replace.speed_factor
-		voice_output += f_seg
+		
+		if f_seg is None:
+			t = (b - a) * replace.speed_factor
+			silent = pydub.AudioSegment.silent(duration=t)
+			voice_output += silent
+		else:
+			voice_output += f_seg
 
 		# Take the next clip from the vocals file
 		# f_seg = voice_file[int(float(replace.song_word.end) * 1000):int(float(next_replace.song_word.start) * 1000)]
