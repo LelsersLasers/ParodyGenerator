@@ -21,8 +21,6 @@ OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
 MIN_TIME = 200
 LOUD_ADJUST = 5.0
-# TEMP_FOLDER = "temp"
-# CONCAT_LIST_FILE = "concat_list.txt"
 
 #------------------------------------------------------------------------------# 
 # Setup SQLite3 database
@@ -167,8 +165,6 @@ command = [
 	f"/input/{SONG_FILE}"
 ]
 subprocess.run(command)
-# command = F"docker run -v $(pwd)/{SPLEETER_OUTPUT}:/output -v $(pwd)/{SONG_PATH}:/input deezer/spleeter:3.6-5stems separate -o /output /input/{SONG_FILE}".split()
-# subprocess.run(command)
 
 song_basename = os.path.basename(song_file).rsplit(".", 1)[0]
 vocals_file = os.path.join(os.getcwd(), SPLEETER_OUTPUT, song_basename, "vocals.wav")
