@@ -20,6 +20,7 @@ SPLEETER_OUTPUT = "spleeter_output"
 OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
 MIN_TIME = 200
+LOUD_ADJUST = 5.0
 # TEMP_FOLDER = "temp"
 # CONCAT_LIST_FILE = "concat_list.txt"
 
@@ -43,166 +44,166 @@ db = sqlite3.connect("database.db")
 db.row_factory = sqlite3.Row
 
 # Drop table if it exists
-# db.execute(DROP_TABLE)
-# db.commit()
+db.execute(DROP_TABLE)
+db.commit()
 
-# # Create table
-# db.execute(CREATE_TABLE)
-# db.commit()
+# Create table
+db.execute(CREATE_TABLE)
+db.commit()
 
-# print("")
+print("")
 #------------------------------------------------------------------------------#
 
 
-# #------------------------------------------------------------------------------#
-# # Prepare input files
+#------------------------------------------------------------------------------#
+# Prepare input files
 
-# # Delete prep folder if it exists
-# if os.path.exists(PREP_FOLDER):
-# 	print("Deleting existing prep folder")
-# 	subprocess.run(["rm", "-r", PREP_FOLDER])
+# Delete prep folder if it exists
+if os.path.exists(PREP_FOLDER):
+	print("Deleting existing prep folder")
+	subprocess.run(["rm", "-r", PREP_FOLDER])
 
-# # Create prep folder
-# print("Creating prep folder")
-# os.mkdir(PREP_FOLDER)
+# Create prep folder
+print("Creating prep folder")
+os.mkdir(PREP_FOLDER)
 
-# # Copy input files to prep folder (and convert to .wav if necessary)
-# input_folder = os.path.join(os.getcwd(), INPUT_FOLDER)
-# prep_folder = os.path.join(os.getcwd(), PREP_FOLDER)
+# Copy input files to prep folder (and convert to .wav if necessary)
+input_folder = os.path.join(os.getcwd(), INPUT_FOLDER)
+prep_folder = os.path.join(os.getcwd(), PREP_FOLDER)
 
-# files = os.listdir(input_folder)
+files = os.listdir(input_folder)
 
-# print(f"Converting {len(files)} files")
-# with alive_progress.alive_bar(len(files)) as bar:
-# 	for file in os.listdir(input_folder):
-# 		download_filepath = os.path.join(input_folder, file)
-# 		new_name = file.rsplit(".", 1)[0] + ".wav"
-# 		new_filepath = os.path.join(prep_folder, new_name)
+print(f"Converting {len(files)} files")
+with alive_progress.alive_bar(len(files)) as bar:
+	for file in os.listdir(input_folder):
+		download_filepath = os.path.join(input_folder, file)
+		new_name = file.rsplit(".", 1)[0] + ".wav"
+		new_filepath = os.path.join(prep_folder, new_name)
 
-# 		if file.endswith(".mp4"):
-# 			print(f"Converting {file} to {new_name}")
-# 			command = f"ffmpeg -hide_banner -loglevel error -v 0 -y -i {download_filepath} -q:a 0 -map a {new_filepath}".split()
-# 			subprocess.run(command)
-# 		elif file.endswith(".mp3"):
-# 			print(f"Converting {file} to {new_name}")
-# 			command = f"ffmpeg -hide_banner -loglevel error -v 0 -y -i {download_filepath} {new_filepath}".split()
-# 			subprocess.run(command)
-# 		else:
-# 			print(f"Copying {file} to {new_name}")
-# 			command = f"cp {download_filepath} {new_filepath}".split()
-# 			subprocess.run(command)
-# 	bar()
+		if file.endswith(".mp4"):
+			print(f"Converting {file} to {new_name}")
+			command = f"ffmpeg -hide_banner -loglevel error -v 0 -y -i {download_filepath} -q:a 0 -map a {new_filepath}".split()
+			subprocess.run(command)
+		elif file.endswith(".mp3"):
+			print(f"Converting {file} to {new_name}")
+			command = f"ffmpeg -hide_banner -loglevel error -v 0 -y -i {download_filepath} {new_filepath}".split()
+			subprocess.run(command)
+		else:
+			print(f"Copying {file} to {new_name}")
+			command = f"cp {download_filepath} {new_filepath}".split()
+			subprocess.run(command)
+		bar()
 
-# print("")
-# #------------------------------------------------------------------------------#
+print("")
+#------------------------------------------------------------------------------#
 
 
-# #------------------------------------------------------------------------------# 
-# # Transcribe input files to database
+#------------------------------------------------------------------------------# 
+# Transcribe input files to database
 
 # Setup Whisper
 print(f"Loading Whisper model {WHISPER_MODEL}")
 model = whisper.load_model(WHISPER_MODEL)
 
-# # Get list of files in prep folder
-# prep_files = os.listdir(prep_folder)
+# Get list of files in prep folder
+prep_files = os.listdir(prep_folder)
 
-# # Transcribe each file
-# for file in prep_files:
-# 	print(f"Transcribing {file}")
+# Transcribe each file
+for file in prep_files:
+	print(f"Transcribing {file}")
 
-# 	filepath = os.path.join(prep_folder, file)
-# 	transcript = model.transcribe(filepath, language="en", verbose=False, word_timestamps=True)
+	filepath = os.path.join(prep_folder, file)
+	transcript = model.transcribe(filepath, language="en", verbose=False, word_timestamps=True)
 
-# 	print(f"Inserting words into database for {file}")
+	print(f"Inserting words into database for {file}")
 
-# 	for s in transcript["segments"]:
-# 		for w in s["words"]:
-# 			word = w["word"]
-# 			start = w["start"]
-# 			end = w["end"]
+	for s in transcript["segments"]:
+		for w in s["words"]:
+			word = w["word"]
+			start = w["start"]
+			end = w["end"]
 
-# 			t = int(float(end) * 1000) - int(float(start) * 1000)
-# 			if t < MIN_TIME:
-# 				continue
+			t = int(float(end) * 1000) - int(float(start) * 1000)
+			if t < MIN_TIME:
+				continue
 
-# 			word = "".join([c for c in word if c not in PUNCTUATION])
+			word = "".join([c for c in word if c not in PUNCTUATION])
 
-# 			if word == word.upper(): # means it's probably like "CHEERING" or "APPLAUSE"
-# 				continue
+			if word == word.upper(): # means it's probably like "CHEERING" or "APPLAUSE"
+				continue
 			
-# 			word = word.lower()
-# 			word.strip()
+			word = word.lower()
+			word.strip()
 
-# 			file_path = os.path.join(PREP_FOLDER, file)
+			file_path = os.path.join(PREP_FOLDER, file)
 
-# 			db.execute("INSERT INTO words (word, file, start, end) VALUES (?, ?, ?, ?)", (word, file_path, start, end))
-# 			db.commit()
+			db.execute("INSERT INTO words (word, file, start, end) VALUES (?, ?, ?, ?)", (word, file_path, start, end))
+			db.commit()
 
-# print("")
-# #------------------------------------------------------------------------------#
+print("")
+#------------------------------------------------------------------------------#
 
 
-# #------------------------------------------------------------------------------#
-# # Split song into voice and accompaniment
+#------------------------------------------------------------------------------#
+# Split song into voice and accompaniment
 
-# # Delete spleeter output folder if it exists
-# if os.path.exists(SPLEETER_OUTPUT):
-# 	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
-# 	subprocess.run(["sudo", "rm", "-rf", SPLEETER_OUTPUT])
+# Delete spleeter output folder if it exists
+if os.path.exists(SPLEETER_OUTPUT):
+	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
+	subprocess.run(["sudo", "rm", "-rf", SPLEETER_OUTPUT])
 
 song_file = os.path.join(os.getcwd(), SONG_FILE)
 
-# print(f"Splitting song {song_file}")
-# spleeter_output_path = os.path.join(os.getcwd(), SPLEETER_OUTPUT)
-# song_path = os.path.join(os.getcwd(), SONG_PATH)
-# command = [
-# 	"docker", "run", 
-# 	"-v", f"{spleeter_output_path}:/output", 
-# 	"-v", f"{song_path}:/input", 
-# 	"deezer/spleeter:3.6-5stems", 
-# 	"separate", 
-# 	"-o", "/output", 
-# 	f"/input/{SONG_FILE}"
-# ]
+print(f"Splitting song {song_file}")
+spleeter_output_path = os.path.join(os.getcwd(), SPLEETER_OUTPUT)
+song_path = os.path.join(os.getcwd(), SONG_PATH)
+command = [
+	"docker", "run", 
+	"-v", f"{spleeter_output_path}:/output", 
+	"-v", f"{song_path}:/input", 
+	"deezer/spleeter:3.6-5stems", 
+	"separate", 
+	"-o", "/output", 
+	f"/input/{SONG_FILE}"
+]
+subprocess.run(command)
+# command = F"docker run -v $(pwd)/{SPLEETER_OUTPUT}:/output -v $(pwd)/{SONG_PATH}:/input deezer/spleeter:3.6-5stems separate -o /output /input/{SONG_FILE}".split()
 # subprocess.run(command)
-# # command = F"docker run -v $(pwd)/{SPLEETER_OUTPUT}:/output -v $(pwd)/{SONG_PATH}:/input deezer/spleeter:3.6-5stems separate -o /output /input/{SONG_FILE}".split()
-# # subprocess.run(command)
 
 song_basename = os.path.basename(song_file).rsplit(".", 1)[0]
 vocals_file = os.path.join(os.getcwd(), SPLEETER_OUTPUT, song_basename, "vocals.wav")
 accompaniment_file = os.path.join(os.getcwd(), SPLEETER_OUTPUT, song_basename, "accompaniment.wav")
 
-# print(f"Vocals file: {vocals_file}")
-# print(f"Accompaniment file: {accompaniment_file}")
+print(f"Vocals file: {vocals_file}")
+print(f"Accompaniment file: {accompaniment_file}")
 
-# print("")
-# #------------------------------------------------------------------------------#
+print("")
+#------------------------------------------------------------------------------#
 
-# #------------------------------------------------------------------------------#
-# # Equalize input volume with the vocals
+#------------------------------------------------------------------------------#
+# Equalize input volume with the vocals
 
-# def match_volume(audio, target_dBFS):
-#     change_in_dBFS = target_dBFS - audio.dBFS
-#     return audio.apply_gain(change_in_dBFS)
+def match_volume(audio, target_dBFS):
+    change_in_dBFS = target_dBFS - audio.dBFS
+    return audio.apply_gain(change_in_dBFS + LOUD_ADJUST)
 
-# def equalize(file_path):
-# 	voice_file = pydub.AudioSegment.from_file(vocals_file)
-# 	avg_dBFS = voice_file.dBFS
+def equalize(file_path):
+	voice_file = pydub.AudioSegment.from_file(vocals_file)
+	avg_dBFS = voice_file.dBFS
 
-# 	audio = pydub.AudioSegment.from_file(file_path)
-# 	audio = match_volume(audio, avg_dBFS)
-# 	audio.export(file_path, format="wav")
+	audio = pydub.AudioSegment.from_file(file_path)
+	audio = match_volume(audio, avg_dBFS)
+	audio.export(file_path, format="wav")
 
-# print("Equalizing input volume")
-# with alive_progress.alive_bar(len(prep_files)) as bar:
-# 	for file in prep_files:
-# 		file_path = os.path.join(prep_folder, file)
-# 		print(file_path)
-# 		equalize(file_path)
-# 		bar()
+print("Equalizing input volume")
+with alive_progress.alive_bar(len(prep_files)) as bar:
+	for file in prep_files:
+		file_path = os.path.join(prep_folder, file)
+		print(file_path)
+		equalize(file_path)
+		bar()
 
-# print("")
+print("")
 #------------------------------------------------------------------------------#
 
 
@@ -326,15 +327,15 @@ def modify_speed(f_seg, speed_factor):
 	if speed_factor != 1:
 		sfs.append(speed_factor)
 
-	if len(sfs) != 1:
+	if len(sfs) > 1:
 		print(f"Speed factors: {sfs}")
 
 	for sf in sfs:
-		f_seg = f_seg.speedup(playback_speed=sf, chunk_size=40, crossfade=0)
-		# try:
-		# except ZeroDivisionError:
-		# 	print(f"ZeroDivisionError for {replace.input_word.word}")
-		# 	print(f"Speed factor: {sf}")
+		try:
+			f_seg = f_seg.speedup(playback_speed=sf, chunk_size=40, crossfade=0)
+		except ZeroDivisionError:
+			print(f"ZeroDivisionError for {replace.input_word.word}")
+			print(f"Speed factor: {sf}")
 
 	return f_seg
 
@@ -357,14 +358,22 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		a = int(float(replace.input_word.start) * 1000)
 		b = int(float(replace.input_word.end) * 1000)
 		print(f"\t{a} \t{b} \t{b - a}")
-		f_seg = f[int(float(replace.input_word.start) * 1000):int(float(replace.input_word.end) * 1000)]
+		f_seg = f[a:b]
 		f_seg = modify_speed(f_seg, replace.speed_factor)
-		
-		voice_output += f_seg
+		t = (b - a) * replace.speed_factor
+
+		if t > 10:
+			voice_output = voice_output.append(f_seg, crossfade=10)
+		else:
+			voice_output += f_seg
+		# voice_output = voice_output.append(f_seg, crossfade=10)
 
 		# Take the next clip from the vocals file
-		f_seg = voice_file[int(float(replace.song_word.end) * 1000):int(float(next_replace.song_word.start) * 1000)]
-		voice_output += f_seg
+		# f_seg = voice_file[int(float(replace.song_word.end) * 1000):int(float(next_replace.song_word.start) * 1000)]
+		# voice_output += f_seg
+		length = int(float(next_replace.song_word.start) * 1000) - int(float(replace.song_word.end) * 1000)
+		silent = pydub.AudioSegment.silent(duration=length)
+		voice_output += silent
 
 		bar()
 
