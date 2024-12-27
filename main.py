@@ -139,7 +139,7 @@ print("")
 
 # Delete spleeter output folder if it exists
 if os.path.exists(SPLEETER_OUTPUT):
-	print("Deleting existing spleeter output folder")
+	print("\nSUDO PASSWORD REQUIRED: deleting existing spleeter output folder")
 	subprocess.run(["sudo", "rm", "-rvf", SPLEETER_OUTPUT])
 
 song_file = os.path.join(os.getcwd(), SONG_FILE)
@@ -208,7 +208,7 @@ class InputWord:
 		self.start = start
 		self.end = end
 class ReplacedWord:
-	def __init__(self, song_word, input_word, speed_factor):
+	def __init__(self, song_word: SongWord, input_word: InputWord, speed_factor):
 		self.song_word = song_word
 		self.input_word = input_word
 		self.speed_factor = speed_factor
@@ -257,7 +257,7 @@ print("")
 
 # Delete temp folder if it exists
 if os.path.exists(TEMP_FOLDER):
-	print("\nSUDO PASSWORD NEEDED: Deleting existing temp folder.")
+	print("Deleting existing temp folder.")
 	subprocess.run(["rm", "-rv", TEMP_FOLDER])
 
 # Create temp folder for processed audio files
@@ -270,14 +270,14 @@ clip_i = 0
 
 # First clip (take from the vocals file)
 first_replace = replaced_words[0]
-first_start = first_replace.song_word.start
-first_sf = first_replace.speed_factor
+# first_start = first_replace.song_word.start
+# first_sf = first_replace.speed_factor
 
 first_clip_fn = f"{clip_i}.wav"
 first_clip_fp = os.path.join(TEMP_FOLDER, first_clip_fn)
 
 # ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {first_start} -filter:a "atempo={speed_factor}" -c:a pcm_s16le {first_clip_fp}
-command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -t {first_start} -c copy {first_clip_fp}".split()
+command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -t {first_replace.song_word.start} {first_clip_fp}".split()
 subprocess.run(command)
 
 list_file.write(f"file '{first_clip_fp}'\n")
@@ -289,17 +289,17 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		replace = replaced_words[i]
 		next_replace = replaced_words[i + 1]
 
-		replace_start = replace.song_word.start
-		replace_end = replace.song_word.end
+		# replace_start = replace.song_word.start
+		# replace_end = replace.song_word.end
 
-		next_start = next_replace.song_word.start
+		# next_start = next_replace.song_word.start
 
 		# Take the replace clip from the prep-ed file
 		replace_clip_fn = f"{clip_i}.wav"
 		replace_clip_fp = os.path.join(TEMP_FOLDER, replace_clip_fn)
 		clip_i += 1
 
-		command = f"ffmpeg -hide_banner -loglevel error -y -i {replace.input_word.file} -ss {replace_start} -to {replace_end} -filter:a \"atempo={replace.speed_factor}\" -c copy {replace_clip_fp}".split()
+		command = f"ffmpeg -hide_banner -loglevel error -y -i {replace.input_word.file} -ss {replace.input_word.start} -to {replace.input_word.end} -filter:a \"atempo={replace.speed_factor}\" {replace_clip_fp}".split()
 		subprocess.run(command)
 
 		list_file.write(f"file '{replace_clip_fp}'\n")
@@ -309,7 +309,7 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 		next_clip_fp = os.path.join(TEMP_FOLDER, next_clip_fn)
 		clip_i += 1
 
-		command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {replace_end} -to {next_start} -c copy {next_clip_fp}".split()
+		command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {replace.song_word.end} -to {next_replace.song_word.start} {next_clip_fp}".split()
 		subprocess.run(command)
 
 		list_file.write(f"file '{next_clip_fp}'\n")
@@ -318,14 +318,14 @@ with alive_progress.alive_bar(len(replaced_words) - 1) as bar:
 
 # Last clip
 last_replace = replaced_words[-1]
-last_start = last_replace.song_word.start
-last_end = last_replace.song_word.end
+# last_start = last_replace.song_word.start
+# last_end = last_replace.song_word.end
 
 last_clip_fn = f"{clip_i}.wav"
 last_clip_fp = os.path.join(TEMP_FOLDER, last_clip_fn)
 clip_i += 1
 
-command = f"ffmpeg -hide_banner -loglevel error -y -i {last_replace.input_word.file} -ss {last_start} -to {last_end} -filter:a \"atempo={last_replace.speed_factor}\" -c copy {last_clip_fp}".split()
+command = f"ffmpeg -hide_banner -loglevel error -y -i {last_replace.input_word.file} -ss {last_replace.input_word.start} -to {last_replace.input_word.end} -filter:a \"atempo={last_replace.speed_factor}\" {last_clip_fp}".split()
 subprocess.run(command)
 
 list_file.write(f"file '{last_clip_fp}'\n")
@@ -334,7 +334,7 @@ list_file.write(f"file '{last_clip_fp}'\n")
 last_vocals_clip_fn = f"{clip_i}.wav"
 last_vocals_clip_fp = os.path.join(TEMP_FOLDER, last_vocals_clip_fn)
 
-command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {last_end} -c copy {last_vocals_clip_fp}".split()
+command = f"ffmpeg -hide_banner -loglevel error -y -i {vocals_file} -ss {last_replace.song_word.end} {last_vocals_clip_fp}".split()
 subprocess.run(command)
 
 list_file.write(f"file '{last_vocals_clip_fp}'\n")
@@ -344,7 +344,7 @@ list_file.close()
 # Concatenate all clips
 print("Concatenating all clips")
 output_fp = os.path.join(os.getcwd(), OUTPUT_VOICE_FILE)
-command = f"ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i {os.path.join(TEMP_FOLDER, CONCAT_LIST_FILE)} -c copy {output_fp}".split()
+command = f"ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i {os.path.join(TEMP_FOLDER, CONCAT_LIST_FILE)} {output_fp}".split()
 subprocess.run(command)
 
 # Clean up temp folder
