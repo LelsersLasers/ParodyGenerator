@@ -294,32 +294,18 @@ with alive_progress.alive_bar(len(song_words)) as bar:
 
 		# If no results, skip
 		if len(results) == 0:
-			# rw = ReplacedWord(sw, None, -1.0)
 			print(f"No (valid) results for {word}")
 			bar()
 			continue
 
+		# Pick based on least modified speed_factor
 		results.sort(key=lambda result: dist_to_one(calc_speed_factor(result)))
-
-		for result in results:
-			speed_factor = calc_speed_factor(result)
-
-			t = int(float(result["end"]) * 1000) - int(float(result["start"]) * 1000)
-			if t * speed_factor < MIN_TIME:
-				speed_factor = float("inf")
-
-			if speed_factor != float("inf") and speed_factor != 0:
-				iw = InputWord(result["word"], result["file"], result["start"], result["end"])
-				print(f"Matched {word} with {iw.file} at {start} to {end} with speed factor {speed_factor}")
-				replaced_words.append(ReplacedWord(sw, iw, speed_factor))
-				bar()
-				break
+		result = results[0]
 		
-		if speed_factor == float("inf") or speed_factor == 0:
-			print(f"Speed factor is {speed_factor} for {word}")
-			bar()
-			continue
-
+		print(f"Matched {word} with {iw.file} at {start} to {end} with speed factor {speed_factor}")
+		replaced_words.append(ReplacedWord(sw, iw, speed_factor))
+		bar()
+		
 print("")
 #------------------------------------------------------------------------------# 
 
