@@ -22,6 +22,7 @@ OUTPUT_VOICE_FILE = "output_voice.mp3"
 OUTPUT_FILE = "output.mp3"
 MIN_TIME = 200
 LOUD_ADJUST = 10.0
+START_END_ADJUST = 5
 #------------------------------------------------------------------------------# 
 
 
@@ -130,8 +131,8 @@ for file in prep_files:
 	for s in transcript["segments"]:
 		for w in s["words"]:
 			word = w["word"]
-			start = w["start"]
-			end = w["end"]
+			start = w["start"] + START_END_ADJUST
+			end = w["end"] + START_END_ADJUST
 
 			t = int(float(end) * 1000) - int(float(start) * 1000)
 			if t < MIN_TIME:
