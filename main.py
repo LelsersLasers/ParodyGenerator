@@ -302,6 +302,7 @@ with alive_progress.alive_bar(len(song_words)) as bar:
 		results.sort(key=lambda result: dist_to_one(calc_speed_factor(result)))
 		result = results[0]
 		
+		iw = InputWord(result["word"], result["file"], result["start"], result["end"])
 		print(f"Matched {word} with {iw.file} at {start} to {end} with speed factor {speed_factor}")
 		replaced_words.append(ReplacedWord(sw, iw, speed_factor))
 		bar()
