@@ -131,7 +131,7 @@ for file in prep_files:
 	for s in transcript["segments"]:
 		for w in s["words"]:
 			word = w["word"]
-			start = w["start"] + START_END_ADJUST
+			start = w["start"] - START_END_ADJUST
 			end = w["end"] + START_END_ADJUST
 
 			t = int(float(end) * 1000) - int(float(start) * 1000)
